@@ -43,5 +43,14 @@
     "reason": "Strike - Falsely striking others.",
     "timestamp": "2025-07-13T02:37:40.371665",
     "created_at": "2025-07-13 02:37:40 UTC"
+  },
+  "6": {
+    "case_number": 6,
+    "action": "infraction",
+    "target_id": 754139700490535033,
+    "moderator_id": 833056325348753451,
+    "reason": "strike - Shush.",
+    "timestamp": "2025-07-13T02:38:53.560344",
+    "created_at": "2025-07-13 02:38:53 UTC"
   }
 }
