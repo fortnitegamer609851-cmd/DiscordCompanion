@@ -16,5 +16,14 @@
     "reason": "hi (Duration: 1 minutes)",
     "timestamp": "2025-07-13T01:45:17.154586",
     "created_at": "2025-07-13 01:45:17 UTC"
+  },
+  "3": {
+    "case_number": 3,
+    "action": "infraction",
+    "target_id": 833056325348753451,
+    "moderator_id": 1121609529868681337,
+    "reason": "hi - wsg",
+    "timestamp": "2025-07-13T02:33:01.829492",
+    "created_at": "2025-07-13 02:33:01 UTC"
   }
 }
