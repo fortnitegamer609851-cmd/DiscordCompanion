@@ -35,11 +35,14 @@ class WelcomeCog(commands.Cog):
             # Get member count
             member_count = member.guild.member_count
             
-            # Create welcome message with member count
-            welcome_message = f"{wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here! We now have {person_emoji} {member_count} members."
+            # Create welcome message
+            welcome_message = f"{wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here!"
             
-            # Send welcome message
-            await welcome_channel.send(welcome_message)
+            # Create button view with member count
+            view = WelcomeMemberCountView(member_count, person_emoji)
+            
+            # Send welcome message with button
+            await welcome_channel.send(welcome_message, view=view)
             logger.info(f'Welcome message sent for {member.name} ({member.id})')
             
         except discord.Forbidden:
@@ -48,8 +51,9 @@ class WelcomeCog(commands.Cog):
             logger.error(f'HTTP error sending welcome message: {e}')
             # Try with fallback emojis
             try:
-                fallback_message = f"{self.fallback_wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here! We now have {self.fallback_person_emoji} {member_count} members."
-                await welcome_channel.send(fallback_message)
+                fallback_message = f"{self.fallback_wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here!"
+                fallback_view = WelcomeMemberCountView(member_count, self.fallback_person_emoji)
+                await welcome_channel.send(fallback_message, view=fallback_view)
             except Exception as fallback_error:
                 logger.error(f'Failed to send fallback welcome message: {fallback_error}')
         except Exception as e:
@@ -59,6 +63,29 @@ class WelcomeCog(commands.Cog):
     async def on_member_remove(self, member):
         """Log when a member leaves"""
         logger.info(f'Member left: {member.name} ({member.id})')
+
+class WelcomeMemberCountView(discord.ui.View):
+    def __init__(self, member_count, emoji):
+        super().__init__(timeout=None)  # No timeout for welcome messages
+        self.member_count = member_count
+        self.emoji = emoji
+        
+        # Add disabled button with member count
+        self.add_item(WelcomeMemberCountButton(member_count, emoji))
+
+class WelcomeMemberCountButton(discord.ui.Button):
+    def __init__(self, member_count, emoji):
+        super().__init__(
+            label=f"{member_count}",
+            emoji=emoji,
+            style=discord.ButtonStyle.secondary,
+            disabled=True  # Make button non-clickable
+        )
+        self.member_count = member_count
+
+    async def callback(self, interaction: discord.Interaction):
+        # This won't be called since button is disabled
+        pass
 
 async def setup(bot):
     await bot.add_cog(WelcomeCog(bot))
