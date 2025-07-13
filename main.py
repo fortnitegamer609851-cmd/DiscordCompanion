@@ -130,7 +130,10 @@ async def load_cogs():
 async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f'Pong! Latency: {latency}ms')
-    await log_command_usage(interaction, 'ping', f'Latency: {latency}ms')
+    try:
+        await log_command_usage(interaction, 'ping', f'Latency: {latency}ms')
+    except Exception as e:
+        logger.error(f"Failed to log command usage: {e}")
 
 @bot.tree.command(name='help', description='Get help with bot commands')
 async def help_command(interaction: discord.Interaction):
@@ -165,7 +168,10 @@ async def help_command(interaction: discord.Interaction):
     )
     
     await interaction.response.send_message(embed=embed)
-    await log_command_usage(interaction, 'help')
+    try:
+        await log_command_usage(interaction, 'help')
+    except Exception as e:
+        logger.error(f"Failed to log command usage: {e}")
 
 @bot.tree.command(name='sync', description='Force sync commands (Owner only)')
 async def sync_command(interaction: discord.Interaction):
@@ -186,7 +192,10 @@ async def sync_command(interaction: discord.Interaction):
             f"✅ Successfully synced {len(synced)} commands to this server and {len(synced_global)} commands globally.",
             ephemeral=True
         )
-        await log_command_usage(interaction, 'sync', f'Guild: {len(synced)} commands, Global: {len(synced_global)} commands')
+        try:
+            await log_command_usage(interaction, 'sync', f'Guild: {len(synced)} commands, Global: {len(synced_global)} commands')
+        except Exception as e:
+            logger.error(f"Failed to log command usage: {e}")
     except Exception as e:
         await interaction.followup.send(f"❌ Failed to sync commands: {str(e)}", ephemeral=True)
 

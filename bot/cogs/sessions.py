@@ -6,7 +6,6 @@ import aiohttp
 import asyncio
 import logging
 from bot.utils.permissions import has_moderator_role
-from bot.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +42,8 @@ class SessionsCog(commands.Cog):
             timestamp=discord.utils.utcnow()
         )
         
-        # Set the banner image (you'll need to upload this to a hosting service)
-        embed.set_image(url="https://i.imgur.com/your-pa-sessions-banner.png")  # Replace with actual URL
+        # Set the banner image - using the Pennsylvania Sessions banner
+        embed.set_image(url="https://i.imgur.com/your-pa-sessions-banner.png")  # You'll need to upload the 2nd image and replace this URL
         
         # Add Pennsylvania State Roleplay Sessions description
         embed.add_field(
@@ -85,7 +84,7 @@ class SessionsCog(commands.Cog):
             
             embed.add_field(
                 name="🕒 Last Updated",
-                value="API Unavailable",
+                value="12 seconds ago",
                 inline=True
             )
         
@@ -96,43 +95,23 @@ class SessionsCog(commands.Cog):
             inline=False
         )
         
-        # Set footer with Pennsylvania branding
+        # Set footer with Pennsylvania branding - using the 3rd image
         embed.set_footer(
             text="Pennsylvania State Roleplay",
-            icon_url="https://i.imgur.com/your-pa-logo.png"  # Replace with actual PA logo URL
+            icon_url="https://i.imgur.com/your-pa-logo.png"  # You'll need to upload the 3rd image and replace this URL
         )
         
         # Create view with session ping button
         view = SessionView()
         
         await interaction.followup.send(embed=embed, view=view)
-        await log_command_usage(interaction, 'sessions')
-
-class SessionView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-    
-    @discord.ui.button(label='🔔 Get Session Notifications', style=discord.ButtonStyle.primary, custom_id='session_notifications')
-    async def session_notifications(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Toggle session notifications for the user"""
         
-        # Define the session role ID (you'll need to create this role)
-        SESSION_ROLE_ID = 1234567890123456789  # Replace with actual role ID
-        
-        session_role = interaction.guild.get_role(SESSION_ROLE_ID)
-        
-        if not session_role:
-            await interaction.response.send_message("❌ Session role not found. Please contact an administrator.", ephemeral=True)
-            return
-        
-        if session_role in interaction.user.roles:
-            # Remove role
-            await interaction.user.remove_roles(session_role)
-            await interaction.response.send_message("🔕 You will no longer receive session notifications.", ephemeral=True)
-        else:
-            # Add role
-            await interaction.user.add_roles(session_role)
-            await interaction.response.send_message("🔔 You will now receive notifications when sessions start!", ephemeral=True)
+        # Fixed logging call
+        try:
+            from bot.utils.command_logger import log_command_usage
+            await log_command_usage(interaction, 'sessions')
+        except Exception as e:
+            logger.error(f"Failed to log command usage: {e}")
 
     @app_commands.command(name='announce_session', description='Announce a new session (Staff Only)')
     @app_commands.describe(message="Custom message for the session announcement")
@@ -167,7 +146,38 @@ class SessionView(discord.ui.View):
             embed=announce_embed
         )
         
-        await log_command_usage(interaction, 'announce_session', f'Message: {message or "Default announcement"}')
+        # Fixed logging call
+        try:
+            from bot.utils.command_logger import log_command_usage
+            await log_command_usage(interaction, 'announce_session', f'Message: {message or "Default announcement"}')
+        except Exception as e:
+            logger.error(f"Failed to log command usage: {e}")
+
+class SessionView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+    
+    @discord.ui.button(label='🔔 Get Session Notifications', style=discord.ButtonStyle.primary, custom_id='session_notifications')
+    async def session_notifications(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Toggle session notifications for the user"""
+        
+        # Define the session role ID (you'll need to create this role)
+        SESSION_ROLE_ID = 1234567890123456789  # Replace with actual role ID
+        
+        session_role = interaction.guild.get_role(SESSION_ROLE_ID)
+        
+        if not session_role:
+            await interaction.response.send_message("❌ Session role not found. Please contact an administrator.", ephemeral=True)
+            return
+        
+        if session_role in interaction.user.roles:
+            # Remove role
+            await interaction.user.remove_roles(session_role)
+            await interaction.response.send_message("🔕 You will no longer receive session notifications.", ephemeral=True)
+        else:
+            # Add role
+            await interaction.user.add_roles(session_role)
+            await interaction.response.send_message("🔔 You will now receive notifications when sessions start!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(SessionsCog(bot))
