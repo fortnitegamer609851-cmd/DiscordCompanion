@@ -32,22 +32,26 @@ async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
     logger.info(f'Bot is in {len(bot.guilds)} guilds')
     
-    # Sync slash commands
+    # Sync slash commands immediately after bot ready
+    await asyncio.sleep(2)  # Wait for Discord to be fully ready
+    
     try:
         guild_id = 1369403919293485188  # Pennsylvania State Roleplay server ID
         guild = discord.Object(id=guild_id)
         
-        # Log all available commands before sync
+        # Log all available commands
         all_commands = bot.tree.get_commands()
-        logger.info(f'Available commands before sync: {[cmd.name for cmd in all_commands]}')
+        logger.info(f'Available commands: {[cmd.name for cmd in all_commands]}')
         
-        # Sync to guild for immediate updates
-        synced = await bot.tree.sync(guild=guild)
-        logger.info(f'Synced {len(synced)} command(s) to guild {guild_id}')
+        # Sync to guild first (faster updates)
+        synced_guild = await bot.tree.sync(guild=guild)
+        logger.info(f'Synced {len(synced_guild)} command(s) to guild {guild_id}')
         
-        # Also sync globally
+        # Also sync globally for backup
         synced_global = await bot.tree.sync()
         logger.info(f'Synced {len(synced_global)} command(s) globally')
+        
+        logger.info('All commands synced successfully!')
         
     except Exception as e:
         logger.error(f'Failed to sync commands: {e}')
@@ -109,6 +113,28 @@ async def help_command(interaction: discord.Interaction):
     )
     
     await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name='sync', description='Force sync commands (Owner only)')
+async def sync_command(interaction: discord.Interaction):
+    """Manually sync slash commands"""
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.response.send_message("❌ Only the server owner can use this command.", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Sync to current guild
+        synced = await bot.tree.sync(guild=interaction.guild)
+        # Also sync globally  
+        synced_global = await bot.tree.sync()
+        
+        await interaction.followup.send(
+            f"✅ Successfully synced {len(synced)} commands to this server and {len(synced_global)} commands globally.",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(f"❌ Failed to sync commands: {str(e)}", ephemeral=True)
 
 async def main():
     # Keep the bot alive
