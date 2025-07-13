@@ -79,5 +79,32 @@
     "reason": "ban - sucks at making bots",
     "timestamp": "2025-07-13T02:45:57.933644",
     "created_at": "2025-07-13 02:45:57 UTC"
+  },
+  "10": {
+    "case_number": 10,
+    "action": "infraction",
+    "target_id": 833056325348753451,
+    "moderator_id": 1121609529868681337,
+    "reason": "e - e",
+    "timestamp": "2025-07-13T02:49:57.363198",
+    "created_at": "2025-07-13 02:49:57 UTC"
+  },
+  "11": {
+    "case_number": 11,
+    "action": "infraction",
+    "target_id": 754139700490535033,
+    "moderator_id": 833056325348753451,
+    "reason": "Verbal Warning - Wants Me fired.",
+    "timestamp": "2025-07-13T02:50:22.548675",
+    "created_at": "2025-07-13 02:50:22 UTC"
+  },
+  "12": {
+    "case_number": 12,
+    "action": "infraction",
+    "target_id": 1121609529868681337,
+    "moderator_id": 1121609529868681337,
+    "reason": "e - test",
+    "timestamp": "2025-07-13T14:51:33.323169",
+    "created_at": "2025-07-13 14:51:33 UTC"
   }
 }

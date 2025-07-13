@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Pennsylvania State Roleplay Bot is running!"
+    return "fat monkeys!! its running!!"
 
 @app.route('/health')
 def health():

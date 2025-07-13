@@ -36,7 +36,7 @@ class WelcomeCog(commands.Cog):
             member_count = member.guild.member_count
             
             # Create welcome message
-            welcome_message = f"{wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here!"
+            welcome_message = f"{wave_emoji} `-` Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here!"
             
             # Create button view with member count
             view = WelcomeMemberCountView(member_count, person_emoji)
