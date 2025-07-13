@@ -11,10 +11,15 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **July 13, 2025:**
-- Fixed command synchronization issue - all 11 slash commands now properly sync to Discord
+- Fixed command synchronization issue - all slash commands now properly sync to Discord
 - Updated welcome message to include non-clickable button displaying member count with custom emoji
 - Eliminated duplicate welcome messages by removing redundant bot instance
 - Confirmed 24/7 hosting functionality with proper Discord token and privileged intents
+- Implemented comprehensive command logging system to track all command usage
+- Updated DM command to send plain messages without embeds for natural appearance
+- Removed /help command per user request
+- Replaced session commands with /infract system for staff infractions
+- Added infraction command with custom embed, PA logo, and automatic appeal thread creation
 
 ## System Architecture
 

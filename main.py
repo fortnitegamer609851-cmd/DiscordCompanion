@@ -18,6 +18,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 WELCOME_CHANNEL_ID = 1393737919121854584
 MODERATOR_ROLE_ID = 1393754910088101958
 COMMAND_LOG_CHANNEL_ID = 1393756933957226506
+INFRACTION_ROLE_ID = 1393737607653097614
 
 # Bot intents
 intents = discord.Intents.default()
@@ -115,7 +116,7 @@ async def load_cogs():
         'bot.cogs.moderation',
         'bot.cogs.member_count',
         'bot.cogs.messaging',
-        'bot.cogs.sessions'
+        'bot.cogs.infraction'
     ]
     
     for cog in cogs:
