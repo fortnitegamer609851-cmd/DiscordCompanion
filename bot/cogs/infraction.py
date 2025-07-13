@@ -37,7 +37,7 @@ class InfractionCog(commands.Cog):
             embed = discord.Embed(
                 title="Staff Infraction",
                 description="The high-ranking team has decided to take disciplinary action against you.",
-                color=0x5865F2  # Discord blue color
+                color=0xFF0000  # Red color
             )
             
             # Add fields
@@ -53,7 +53,7 @@ class InfractionCog(commands.Cog):
             )
             
             # Set PA logo as thumbnail
-            embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1752367152194404373/1752374032736854076/PA_logo_discord_ready_1752373807218.png")
+            embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1369403919293485191/1322362936154423357/image.png")
             
             # Send the infraction embed
             infraction_message = await interaction.channel.send(embed=embed)
