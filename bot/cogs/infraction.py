@@ -52,6 +52,9 @@ class InfractionCog(commands.Cog):
                 icon_url=interaction.user.avatar.url if interaction.user.avatar else None
             )
             
+            # Set the provided image as the main embed image
+            embed.set_image(url="https://media.discordapp.net/attachments/1393280610855813250/1393284667641430016/Screenshot_2025-07-11_at_10.35.46_AM.png?ex=68753ff6&is=6873ee76&hm=76b5cac4637a95d7a9a8bb09cd92f54593f0821de658d2ae930b5b23c047d552&=&width=1851&height=142")
+            
             # Set server logo as thumbnail (top right)
             if interaction.guild and interaction.guild.icon:
                 embed.set_thumbnail(url=interaction.guild.icon.url)
