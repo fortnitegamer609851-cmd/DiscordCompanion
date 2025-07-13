@@ -116,7 +116,8 @@ async def load_cogs():
         'bot.cogs.moderation',
         'bot.cogs.member_count',
         'bot.cogs.messaging',
-        'bot.cogs.infraction'
+        'bot.cogs.infraction',
+        'bot.cogs.suggestions'
     ]
     
     for cog in cogs:
