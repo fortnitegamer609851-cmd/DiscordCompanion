@@ -25,5 +25,23 @@
     "reason": "hi - wsg",
     "timestamp": "2025-07-13T02:33:01.829492",
     "created_at": "2025-07-13 02:33:01 UTC"
+  },
+  "4": {
+    "case_number": 4,
+    "action": "infraction",
+    "target_id": 1054186124651806762,
+    "moderator_id": 1121609529868681337,
+    "reason": "e - e",
+    "timestamp": "2025-07-13T02:35:56.560278",
+    "created_at": "2025-07-13 02:35:56 UTC"
+  },
+  "5": {
+    "case_number": 5,
+    "action": "infraction",
+    "target_id": 1121609529868681337,
+    "moderator_id": 833056325348753451,
+    "reason": "Strike - Falsely striking others.",
+    "timestamp": "2025-07-13T02:37:40.371665",
+    "created_at": "2025-07-13 02:37:40 UTC"
   }
 }
