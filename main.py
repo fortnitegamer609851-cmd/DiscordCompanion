@@ -135,43 +135,7 @@ async def ping(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Failed to log command usage: {e}")
 
-@bot.tree.command(name='help', description='Get help with bot commands')
-async def help_command(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title='Pennsylvania State Roleplay Bot Help',
-        description='Here are the available commands:',
-        color=discord.Color.blue()
-    )
-    
-    embed.add_field(
-        name='General Commands',
-        value='`/ping` - Check bot latency\n`/help` - Show this help message\n`/member_count` - Show current member count',
-        inline=False
-    )
-    
-    embed.add_field(
-        name='Moderation Commands (Staff Only)',
-        value='`/kick` - Kick a member\n`/mute` - Mute a member\n`/ban` - Ban a member\n`/softban` - Softban a member\n`/purge` - Delete multiple messages',
-        inline=False
-    )
-    
-    embed.add_field(
-        name='Messaging Commands (Staff Only)',
-        value='`/say` - Send a message as the bot\n`/dm` - Send a direct message to a user\n`/announce` - Send an announcement',
-        inline=False
-    )
-    
-    embed.add_field(
-        name='Session Commands',
-        value='`/sessions` - View session information and get notifications\n`/announce_session` - Announce a new session (Staff Only)',
-        inline=False
-    )
-    
-    await interaction.response.send_message(embed=embed)
-    try:
-        await log_command_usage(interaction, 'help')
-    except Exception as e:
-        logger.error(f"Failed to log command usage: {e}")
+
 
 @bot.tree.command(name='sync', description='Force sync commands (Owner only)')
 async def sync_command(interaction: discord.Interaction):
