@@ -52,8 +52,12 @@ class InfractionCog(commands.Cog):
                 icon_url=interaction.user.avatar.url if interaction.user.avatar else None
             )
             
-            # Set PA logo as thumbnail
-            embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1369403919293485191/1322362936154423357/image.png")
+            # Set server logo as thumbnail (top right)
+            if interaction.guild and interaction.guild.icon:
+                embed.set_thumbnail(url=interaction.guild.icon.url)
+            else:
+                # Fallback to PA logo if no server icon
+                embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1369403919293485191/1322362936154423357/image.png")
             
             # Get the specific infraction channel
             infraction_channel = self.bot.get_channel(1393737982120558674)
