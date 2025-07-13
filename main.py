@@ -32,10 +32,16 @@ async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
     logger.info(f'Bot is in {len(bot.guilds)} guilds')
     
-    # Sync slash commands
+    # Sync slash commands to guild first for faster updates
     try:
-        synced = await bot.tree.sync()
-        logger.info(f'Synced {len(synced)} command(s)')
+        guild_id = 1369403919293485188  # Pennsylvania State Roleplay server ID
+        guild = discord.Object(id=guild_id)
+        synced = await bot.tree.sync(guild=guild)
+        logger.info(f'Synced {len(synced)} command(s) to guild {guild_id}')
+        
+        # Also sync globally
+        synced_global = await bot.tree.sync()
+        logger.info(f'Synced {len(synced_global)} command(s) globally')
     except Exception as e:
         logger.error(f'Failed to sync commands: {e}')
 
