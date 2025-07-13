@@ -61,5 +61,23 @@
     "reason": "Terminated - dumb",
     "timestamp": "2025-07-13T02:42:49.111875",
     "created_at": "2025-07-13 02:42:49 UTC"
+  },
+  "8": {
+    "case_number": 8,
+    "action": "infraction",
+    "target_id": 1110742800519155785,
+    "moderator_id": 1121609529868681337,
+    "reason": "e - e",
+    "timestamp": "2025-07-13T02:45:16.669970",
+    "created_at": "2025-07-13 02:45:16 UTC"
+  },
+  "9": {
+    "case_number": 9,
+    "action": "infraction",
+    "target_id": 1121609529868681337,
+    "moderator_id": 1054186124651806762,
+    "reason": "ban - sucks at making bots",
+    "timestamp": "2025-07-13T02:45:57.933644",
+    "created_at": "2025-07-13 02:45:57 UTC"
   }
 }
