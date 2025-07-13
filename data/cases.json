@@ -1,1 +1,20 @@
-{}
+{
+  "1": {
+    "case_number": 1,
+    "action": "kick",
+    "target_id": 1184661866048405565,
+    "moderator_id": 1121609529868681337,
+    "reason": "because",
+    "timestamp": "2025-07-13T01:42:47.886538",
+    "created_at": "2025-07-13 01:42:47 UTC"
+  },
+  "2": {
+    "case_number": 2,
+    "action": "mute",
+    "target_id": 754139700490535033,
+    "moderator_id": 1121609529868681337,
+    "reason": "hi (Duration: 1 minutes)",
+    "timestamp": "2025-07-13T01:45:17.154586",
+    "created_at": "2025-07-13 01:45:17 UTC"
+  }
+}
