@@ -8,6 +8,14 @@ This is a Discord bot built with Python and discord.py for the Pennsylvania Stat
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**July 13, 2025:**
+- Fixed command synchronization issue - all 11 slash commands now properly sync to Discord
+- Updated welcome message to include non-clickable button displaying member count with custom emoji
+- Eliminated duplicate welcome messages by removing redundant bot instance
+- Confirmed 24/7 hosting functionality with proper Discord token and privileged intents
+
 ## System Architecture
 
 The bot follows a modular architecture using Discord.py's cog system:
