@@ -114,7 +114,8 @@ async def load_cogs():
         'bot.cogs.welcome',
         'bot.cogs.moderation',
         'bot.cogs.member_count',
-        'bot.cogs.messaging'
+        'bot.cogs.messaging',
+        'bot.cogs.sessions'
     ]
     
     for cog in cogs:
@@ -154,6 +155,12 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(
         name='Messaging Commands (Staff Only)',
         value='`/say` - Send a message as the bot\n`/dm` - Send a direct message to a user\n`/announce` - Send an announcement',
+        inline=False
+    )
+    
+    embed.add_field(
+        name='Session Commands',
+        value='`/sessions` - View session information and get notifications\n`/announce_session` - Announce a new session (Staff Only)',
         inline=False
     )
     
