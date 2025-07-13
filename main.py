@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 TOKEN = os.getenv('DISCORD_TOKEN')
 WELCOME_CHANNEL_ID = 1393737919121854584
 MODERATOR_ROLE_ID = 1393754910088101958
+COMMAND_LOG_CHANNEL_ID = 1393756933957226506
 
 # Bot intents
 intents = discord.Intents.default()
@@ -26,6 +27,49 @@ intents.guilds = True
 
 # Create bot instance
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+async def log_command_usage(interaction: discord.Interaction, command_name: str, additional_info: str = ""):
+    """Log command usage to the designated channel"""
+    try:
+        log_channel = bot.get_channel(COMMAND_LOG_CHANNEL_ID)
+        if log_channel:
+            embed = discord.Embed(
+                title="🔧 Command Used",
+                color=discord.Color.blue(),
+                timestamp=discord.utils.utcnow()
+            )
+            
+            embed.add_field(
+                name="Command", 
+                value=f"`/{command_name}`", 
+                inline=True
+            )
+            
+            embed.add_field(
+                name="User", 
+                value=f"{interaction.user.mention} ({interaction.user.name})", 
+                inline=True
+            )
+            
+            embed.add_field(
+                name="Channel", 
+                value=f"{interaction.channel.mention}", 
+                inline=True
+            )
+            
+            if additional_info:
+                embed.add_field(
+                    name="Details", 
+                    value=additional_info, 
+                    inline=False
+                )
+            
+            embed.set_footer(text=f"User ID: {interaction.user.id}")
+            
+            await log_channel.send(embed=embed)
+            
+    except Exception as e:
+        logger.error(f"Failed to log command usage: {e}")
 
 @bot.event
 async def on_ready():
@@ -85,6 +129,7 @@ async def load_cogs():
 async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
     await interaction.response.send_message(f'Pong! Latency: {latency}ms')
+    await log_command_usage(interaction, 'ping', f'Latency: {latency}ms')
 
 @bot.tree.command(name='help', description='Get help with bot commands')
 async def help_command(interaction: discord.Interaction):
@@ -108,11 +153,12 @@ async def help_command(interaction: discord.Interaction):
     
     embed.add_field(
         name='Messaging Commands (Staff Only)',
-        value='`/say` - Send a message as the bot\n`/dm` - Send a direct message to a user',
+        value='`/say` - Send a message as the bot\n`/dm` - Send a direct message to a user\n`/announce` - Send an announcement',
         inline=False
     )
     
     await interaction.response.send_message(embed=embed)
+    await log_command_usage(interaction, 'help')
 
 @bot.tree.command(name='sync', description='Force sync commands (Owner only)')
 async def sync_command(interaction: discord.Interaction):
@@ -133,6 +179,7 @@ async def sync_command(interaction: discord.Interaction):
             f"✅ Successfully synced {len(synced)} commands to this server and {len(synced_global)} commands globally.",
             ephemeral=True
         )
+        await log_command_usage(interaction, 'sync', f'Guild: {len(synced)} commands, Global: {len(synced_global)} commands')
     except Exception as e:
         await interaction.followup.send(f"❌ Failed to sync commands: {str(e)}", ephemeral=True)
 

@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 from bot.utils.permissions import has_moderator_role
+from bot.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class MessagingCog(commands.Cog):
             # Confirm to the user
             await interaction.response.send_message(f'Message sent successfully!', ephemeral=True)
             logger.info(f'Say command used by {interaction.user.name} in {interaction.channel.name}: {message[:50]}...')
+            await log_command_usage(self.bot, interaction, 'say', f'Message: {message[:50]}...')
             
         except discord.Forbidden:
             await interaction.response.send_message('I do not have permission to send messages in this channel.', ephemeral=True)
@@ -46,16 +48,8 @@ class MessagingCog(commands.Cog):
             return
         
         try:
-            # Try to send the DM
-            dm_embed = discord.Embed(
-                title='Direct Message',
-                description=message,
-                color=discord.Color.blue()
-            )
-            dm_embed.add_field(name='From', value=f'{interaction.guild.name} Staff', inline=False)
-            dm_embed.add_field(name='Sent by', value=interaction.user.mention, inline=False)
-            
-            await user.send(embed=dm_embed)
+            # Send the DM as a plain message (looks like normal person typing)
+            await user.send(message)
             
             # Confirm to the moderator
             confirm_embed = discord.Embed(
@@ -68,6 +62,7 @@ class MessagingCog(commands.Cog):
             
             await interaction.response.send_message(embed=confirm_embed, ephemeral=True)
             logger.info(f'DM sent by {interaction.user.name} to {user.name}: {message[:50]}...')
+            await log_command_usage(self.bot, interaction, 'dm', f'To: {user.name} | Message: {message[:50]}...')
             
         except discord.Forbidden:
             # User has DMs disabled or blocked the bot
@@ -129,6 +124,7 @@ class MessagingCog(commands.Cog):
             # Confirm to the user
             await interaction.response.send_message(f'Announcement sent successfully!', ephemeral=True)
             logger.info(f'Announcement sent by {interaction.user.name} in {interaction.channel.name}: {title}')
+            await log_command_usage(self.bot, interaction, 'announce', f'Title: {title} | Color: {color}')
             
         except discord.Forbidden:
             await interaction.response.send_message('I do not have permission to send messages in this channel.', ephemeral=True)

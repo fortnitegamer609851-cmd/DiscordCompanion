@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import logging
+from bot.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class MemberCountCog(commands.Cog):
             
             await interaction.response.send_message(embed=embed, view=view)
             logger.info(f'Member count displayed: {member_count}')
+            await log_command_usage(self.bot, interaction, 'member_count', f'Member count: {member_count}')
             
         except Exception as e:
             logger.error(f'Error displaying member count: {e}')

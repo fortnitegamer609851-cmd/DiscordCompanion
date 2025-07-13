@@ -4,6 +4,7 @@ from discord import app_commands
 import logging
 from bot.utils.permissions import has_moderator_role
 from bot.utils.case_tracker import CaseTracker
+from bot.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ class ModerationCog(commands.Cog):
             
             await interaction.response.send_message(embed=embed)
             logger.info(f'Member kicked: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
+            await log_command_usage(self.bot, interaction, 'kick', f'Target: {member.name} | Reason: {reason} | Case: #{case_number}')
             
         except discord.Forbidden:
             await interaction.response.send_message('I do not have permission to kick this member.', ephemeral=True)
@@ -148,6 +150,7 @@ class ModerationCog(commands.Cog):
             
             await interaction.response.send_message(embed=embed)
             logger.info(f'Member banned: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
+            await log_command_usage(self.bot, interaction, 'ban', f'Target: {member.name} | Reason: {reason} | Case: #{case_number}')
             
         except discord.Forbidden:
             await interaction.response.send_message('I do not have permission to ban this member.', ephemeral=True)
@@ -219,6 +222,7 @@ class ModerationCog(commands.Cog):
             
             await interaction.response.send_message(embed=embed)
             logger.info(f'Member softbanned: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
+            await log_command_usage(self.bot, interaction, 'softban', f'Target: {member.name} | Reason: {reason} | Case: #{case_number}')
             
         except discord.Forbidden:
             await interaction.response.send_message('I do not have permission to softban this member.', ephemeral=True)
@@ -292,6 +296,7 @@ class ModerationCog(commands.Cog):
             
             await interaction.response.send_message(embed=embed)
             logger.info(f'Member muted: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
+            await log_command_usage(self.bot, interaction, 'mute', f'Target: {member.name} | Duration: {duration}min | Reason: {reason} | Case: #{case_number}')
             
         except discord.Forbidden:
             await interaction.response.send_message('I do not have permission to mute this member.', ephemeral=True)
@@ -343,6 +348,7 @@ class ModerationCog(commands.Cog):
             
             await interaction.followup.send(embed=embed)
             logger.info(f'Messages purged: {deleted_count} in {interaction.channel.name} by {interaction.user.name} - Case #{case_number}')
+            await log_command_usage(self.bot, interaction, 'purge', f'Deleted: {deleted_count} messages | Case: #{case_number}')
             
         except discord.Forbidden:
             await interaction.followup.send('I do not have permission to delete messages in this channel.')
