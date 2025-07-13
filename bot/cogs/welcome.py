@@ -10,6 +10,8 @@ class WelcomeCog(commands.Cog):
         self.welcome_channel_id = 1393737919121854584
         self.custom_wave_emoji = "<:parp_wave:1384992297879470123>"
         self.fallback_wave_emoji = "👋"
+        self.custom_person_emoji = "<:flst_person:1384991790838448209>"
+        self.fallback_person_emoji = "👤"
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -22,16 +24,19 @@ class WelcomeCog(commands.Cog):
                 logger.error(f'Welcome channel not found: {self.welcome_channel_id}')
                 return
             
-            # Try to use custom emoji, fallback to standard emoji
+            # Try to use custom emojis, fallback to standard emojis
             try:
-                # Test if custom emoji is available
                 wave_emoji = self.custom_wave_emoji
-                # If we can't use custom emoji, it will raise an error when sending
+                person_emoji = self.custom_person_emoji
             except:
                 wave_emoji = self.fallback_wave_emoji
+                person_emoji = self.fallback_person_emoji
             
-            # Create welcome message
-            welcome_message = f"{wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here!"
+            # Get member count
+            member_count = member.guild.member_count
+            
+            # Create welcome message with member count
+            welcome_message = f"{wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here! We now have {person_emoji} {member_count} members."
             
             # Send welcome message
             await welcome_channel.send(welcome_message)
@@ -41,9 +46,9 @@ class WelcomeCog(commands.Cog):
             logger.error(f'No permission to send message in welcome channel')
         except discord.HTTPException as e:
             logger.error(f'HTTP error sending welcome message: {e}')
-            # Try with fallback emoji
+            # Try with fallback emojis
             try:
-                fallback_message = f"{self.fallback_wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here!"
+                fallback_message = f"{self.fallback_wave_emoji} Welcome to **Pennsylvania State Roleplay** {member.mention}, we hope you enjoy your stay here! We now have {self.fallback_person_emoji} {member_count} members."
                 await welcome_channel.send(fallback_message)
             except Exception as fallback_error:
                 logger.error(f'Failed to send fallback welcome message: {fallback_error}')
