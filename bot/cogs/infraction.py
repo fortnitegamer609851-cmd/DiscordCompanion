@@ -37,11 +37,11 @@ class InfractionCog(commands.Cog):
             embed = discord.Embed(
                 title="Staff Infraction",
                 description="The high-ranking team has decided to take disciplinary action against you.",
-                color=0xFF0000  # Red color
+                color=0x8AA0AE  # Updated hex color
             )
             
             # Add fields
-            embed.add_field(name="Staff Member:", value=f"@{staff_member.mention}", inline=False)
+            embed.add_field(name="Staff Member:", value=staff_member.mention, inline=False)
             embed.add_field(name="Punishment:", value=punishment, inline=False)
             embed.add_field(name="Reason:", value=reason, inline=False)
             embed.add_field(name="Notes:", value="None", inline=False)
@@ -55,10 +55,16 @@ class InfractionCog(commands.Cog):
             # Set PA logo as thumbnail
             embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1369403919293485191/1322362936154423357/image.png")
             
-            # Send the infraction embed
-            infraction_message = await interaction.channel.send(embed=embed)
+            # Get the specific infraction channel
+            infraction_channel = self.bot.get_channel(1393737982120558674)
+            if not infraction_channel:
+                await interaction.response.send_message('❌ Could not find the infraction channel.', ephemeral=True)
+                return
             
-            # Create appeal thread
+            # Send the infraction embed to the specific channel
+            infraction_message = await infraction_channel.send(embed=embed)
+            
+            # Create appeal thread with the name "Appeal Here"
             thread = await infraction_message.create_thread(
                 name="Appeal Here",
                 auto_archive_duration=10080  # 7 days
