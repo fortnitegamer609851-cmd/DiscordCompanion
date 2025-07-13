@@ -33,6 +33,11 @@ class SessionsCog(commands.Cog):
     @app_commands.command(name='sessions', description='View Pennsylvania State Roleplay session information')
     async def sessions(self, interaction: discord.Interaction):
         """Display session information for Pennsylvania State Roleplay"""
+        # Check if user is authorized
+        if interaction.user.id != 1121609529868681337:
+            await interaction.response.send_message("❌ You don't have permission to use this command.", ephemeral=True)
+            return
+            
         await interaction.response.defer()
         
         # Create the main embed with the PA Sessions header
