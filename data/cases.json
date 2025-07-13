@@ -52,5 +52,14 @@
     "reason": "strike - Shush.",
     "timestamp": "2025-07-13T02:38:53.560344",
     "created_at": "2025-07-13 02:38:53 UTC"
+  },
+  "7": {
+    "case_number": 7,
+    "action": "infraction",
+    "target_id": 1054186124651806762,
+    "moderator_id": 1121609529868681337,
+    "reason": "Terminated - dumb",
+    "timestamp": "2025-07-13T02:42:49.111875",
+    "created_at": "2025-07-13 02:42:49 UTC"
   }
 }
