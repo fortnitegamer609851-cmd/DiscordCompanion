@@ -5,8 +5,13 @@ import logging
 from bot.utils.permissions import has_moderator_role
 from bot.utils.case_tracker import CaseTracker
 from bot.utils.command_logger import log_command_usage
+import datetime
 
 logger = logging.getLogger(__name__)
+
+LIMITED_ROLE_ID = 1393737607653097614
+LOCK_ROLE_ID = 1393754910088101958  # Role allowed to use /lock command
+COMMUNITY_MEMBER_ROLE_ID = 1393737552502194238  # Community member role to lock/unlock
 
 class ModerationCog(commands.Cog):
     def __init__(self, bot):
@@ -14,347 +19,255 @@ class ModerationCog(commands.Cog):
         self.case_tracker = CaseTracker()
         self.checkmark_emoji = "<:checkmark:1384993844671545506>"
         self.fallback_checkmark = "✅"
+        self.user_points = {}
+        self.warn_points = 2
+        self.ban_threshold = 12
 
     def get_checkmark_emoji(self):
-        """Get checkmark emoji with fallback"""
         try:
             return self.checkmark_emoji
         except:
             return self.fallback_checkmark
 
-    @app_commands.command(name='kick', description='Kick a member from the server')
-    @app_commands.describe(member='The member to kick', reason='Reason for the kick')
-    async def kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'No reason provided'):
-        """Kick a member with case tracking"""
+    def add_points(self, user_id: int, points: int) -> int:
+        current = self.user_points.get(user_id, 0)
+        new_total = current + points
+        self.user_points[user_id] = new_total
+        return new_total
+
+    def remove_points(self, user_id: int, points: int) -> int:
+        current = self.user_points.get(user_id, 0)
+        new_total = max(current - points, 0)
+        self.user_points[user_id] = new_total
+        return new_total
+
+    async def send_dm(self, member: discord.Member, action: str, reason: str):
+        try:
+            await member.send(f"You have been **{action}** for: {reason}")
+        except discord.Forbidden:
+            pass
+
+    def is_limited_moderator(self, member: discord.Member) -> bool:
+        return any(role.id == LIMITED_ROLE_ID for role in member.roles)
+
+    def can_execute(self, interaction: discord.Interaction, limited_only: bool = False) -> bool:
+        if self.is_limited_moderator(interaction.user):
+            return limited_only
+        return has_moderator_role(interaction.user)
+
+    def can_lock(self, member: discord.Member) -> bool:
+        return any(role.id == LOCK_ROLE_ID for role in member.roles)
+
+    @app_commands.command(name='warn', description='Warn a member (adds 2 points)')
+    @app_commands.describe(member='Member to warn', reason='Reason for the warning')
+    async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: str):
+        if not self.can_execute(interaction, limited_only=True):
+            await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
+            return
+
+        if not interaction.guild.me.guild_permissions.ban_members:
+            await interaction.response.send_message('I do not have permission to ban members.', ephemeral=True)
+            return
+
+        total_points = self.add_points(member.id, self.warn_points)
+        await self.send_dm(member, "warned", reason)
+        emoji = self.get_checkmark_emoji()
+        msg = f"{emoji} {member.mention} has been warned for {reason}. They now have {total_points}/12 points."
+
+        if total_points >= self.ban_threshold and not self.is_limited_moderator(interaction.user):
+            try:
+                await member.ban(reason=f"Reached {total_points} points (auto-ban)")
+                msg += f"\n🚨 {member.mention} has reached {total_points} points and has been permanently banned."
+            except discord.Forbidden:
+                msg += f"\n⚠️ I do not have permission to ban {member.mention}."
+            except Exception as e:
+                msg += f"\n⚠️ Failed to ban {member.mention}: {e}"
+
+        await interaction.response.send_message(msg)
+
+    @app_commands.command(name='kick', description='Kick a member')
+    @app_commands.describe(member='Member to kick', reason='Reason for the kick')
+    async def kick(self, interaction: discord.Interaction, member: discord.Member, reason: str):
+        if not self.can_execute(interaction, limited_only=True):
+            await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
+            return
+
+        if not interaction.guild.me.guild_permissions.kick_members:
+            await interaction.response.send_message('I do not have permission to kick members.', ephemeral=True)
+            return
+
+        if member.top_role >= interaction.guild.me.top_role:
+            await interaction.response.send_message('I cannot kick this member due to role hierarchy.', ephemeral=True)
+            return
+
+        try:
+            await self.send_dm(member, "kicked", reason)
+            await member.kick(reason=reason)
+            await interaction.response.send_message(f"{self.get_checkmark_emoji()} {member.mention} has been kicked for: {reason}")
+        except discord.Forbidden:
+            await interaction.response.send_message('Failed to kick member: insufficient permissions.', ephemeral=True)
+
+    @app_commands.command(name='removepoints', description='Remove infraction points from a member')
+    @app_commands.describe(member='Member to remove points from', amount='Amount of points to remove')
+    async def removepoints(self, interaction: discord.Interaction, member: discord.Member, amount: int):
         if not has_moderator_role(interaction.user):
             await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
             return
-        
-        try:
-            # Check if bot has permission
-            if not interaction.guild.me.guild_permissions.kick_members:
-                await interaction.response.send_message('I do not have permission to kick members.', ephemeral=True)
-                return
-            
-            # Check if target is kickable
-            if member.top_role >= interaction.guild.me.top_role:
-                await interaction.response.send_message('I cannot kick this member due to role hierarchy.', ephemeral=True)
-                return
-            
-            # Get case number
-            case_number = self.case_tracker.get_next_case_number()
-            
-            # Try to DM the user first
-            try:
-                dm_embed = discord.Embed(
-                    title='You have been kicked',
-                    description=f'You have been kicked from **{interaction.guild.name}**',
-                    color=discord.Color.orange()
-                )
-                dm_embed.add_field(name='Reason', value=reason, inline=False)
-                dm_embed.add_field(name='Case Number', value=f'#{case_number}', inline=False)
-                dm_embed.add_field(name='Moderator', value=interaction.user.mention, inline=False)
-                
-                await member.send(embed=dm_embed)
-                dm_sent = True
-            except discord.Forbidden:
-                dm_sent = False
-            
-            # Kick the member
-            await member.kick(reason=f'Case #{case_number}: {reason}')
-            
-            # Save case
-            self.case_tracker.save_case(case_number, 'kick', member.id, interaction.user.id, reason)
-            
-            # Create response embed
-            embed = discord.Embed(
-                title=f'{self.get_checkmark_emoji()} Member Kicked',
-                description=f'**{member.name}** has been kicked from the server.',
-                color=discord.Color.orange()
-            )
-            embed.add_field(name='Case Number', value=f'#{case_number}', inline=True)
-            embed.add_field(name='Reason', value=reason, inline=True)
-            embed.add_field(name='Moderator', value=interaction.user.mention, inline=True)
-            embed.add_field(name='DM Sent', value='Yes' if dm_sent else 'No (DMs disabled)', inline=True)
-            
-            await interaction.response.send_message(embed=embed)
-            logger.info(f'Member kicked: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
-            await log_command_usage(self.bot, interaction, 'kick', f'Target: {member.name} | Reason: {reason} | Case: #{case_number}')
-            
-        except discord.Forbidden:
-            await interaction.response.send_message('I do not have permission to kick this member.', ephemeral=True)
-        except Exception as e:
-            logger.error(f'Error kicking member: {e}')
-            await interaction.response.send_message('An error occurred while kicking the member.', ephemeral=True)
 
-    @app_commands.command(name='ban', description='Ban a member from the server')
-    @app_commands.describe(member='The member to ban', reason='Reason for the ban', delete_days='Days of messages to delete (0-7)')
-    async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'No reason provided', delete_days: int = 0):
-        """Ban a member with case tracking"""
-        if not has_moderator_role(interaction.user):
+        if amount < 1:
+            await interaction.response.send_message('Amount must be at least 1.', ephemeral=True)
+            return
+
+        new_total = self.remove_points(member.id, amount)
+        emoji = self.get_checkmark_emoji()
+        await interaction.response.send_message(f"{emoji} Removed {amount} points from {member.mention}. They now have {new_total}/12 points.", ephemeral=True)
+
+    @app_commands.command(name='points', description='Check the points of a member')
+    @app_commands.describe(member='The member to check points for')
+    async def points(self, interaction: discord.Interaction, member: discord.Member):
+        points = self.user_points.get(member.id, 0)
+        emoji = self.get_checkmark_emoji()
+        await interaction.response.send_message(f"{emoji} {member.mention} has {points}/12 points.", ephemeral=True)
+
+    @app_commands.command(name='ban', description='Ban a member')
+    @app_commands.describe(member='Member to ban', reason='Reason for the ban', delete_days='Days of messages to delete (0-7)')
+    async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: str, delete_days: int = 0):
+        if not self.can_execute(interaction):
             await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
             return
-        
-        try:
-            # Validate delete_days
-            if delete_days < 0 or delete_days > 7:
-                await interaction.response.send_message('Delete days must be between 0 and 7.', ephemeral=True)
-                return
-            
-            # Check if bot has permission
-            if not interaction.guild.me.guild_permissions.ban_members:
-                await interaction.response.send_message('I do not have permission to ban members.', ephemeral=True)
-                return
-            
-            # Check if target is bannable
-            if member.top_role >= interaction.guild.me.top_role:
-                await interaction.response.send_message('I cannot ban this member due to role hierarchy.', ephemeral=True)
-                return
-            
-            # Get case number
-            case_number = self.case_tracker.get_next_case_number()
-            
-            # Try to DM the user first
-            try:
-                dm_embed = discord.Embed(
-                    title='You have been banned',
-                    description=f'You have been banned from **{interaction.guild.name}**',
-                    color=discord.Color.red()
-                )
-                dm_embed.add_field(name='Reason', value=reason, inline=False)
-                dm_embed.add_field(name='Case Number', value=f'#{case_number}', inline=False)
-                dm_embed.add_field(name='Moderator', value=interaction.user.mention, inline=False)
-                
-                await member.send(embed=dm_embed)
-                dm_sent = True
-            except discord.Forbidden:
-                dm_sent = False
-            
-            # Ban the member
-            await member.ban(reason=f'Case #{case_number}: {reason}', delete_message_days=delete_days)
-            
-            # Save case
-            self.case_tracker.save_case(case_number, 'ban', member.id, interaction.user.id, reason)
-            
-            # Create response embed
-            embed = discord.Embed(
-                title=f'{self.get_checkmark_emoji()} Member Banned',
-                description=f'**{member.name}** has been banned from the server.',
-                color=discord.Color.red()
-            )
-            embed.add_field(name='Case Number', value=f'#{case_number}', inline=True)
-            embed.add_field(name='Reason', value=reason, inline=True)
-            embed.add_field(name='Moderator', value=interaction.user.mention, inline=True)
-            embed.add_field(name='Messages Deleted', value=f'{delete_days} days', inline=True)
-            embed.add_field(name='DM Sent', value='Yes' if dm_sent else 'No (DMs disabled)', inline=True)
-            
-            await interaction.response.send_message(embed=embed)
-            logger.info(f'Member banned: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
-            await log_command_usage(self.bot, interaction, 'ban', f'Target: {member.name} | Reason: {reason} | Case: #{case_number}')
-            
-        except discord.Forbidden:
-            await interaction.response.send_message('I do not have permission to ban this member.', ephemeral=True)
-        except Exception as e:
-            logger.error(f'Error banning member: {e}')
-            await interaction.response.send_message('An error occurred while banning the member.', ephemeral=True)
 
-    @app_commands.command(name='softban', description='Softban a member (ban then immediately unban)')
-    @app_commands.describe(member='The member to softban', reason='Reason for the softban', delete_days='Days of messages to delete (0-7)')
-    async def softban(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'No reason provided', delete_days: int = 1):
-        """Softban a member with case tracking"""
-        if not has_moderator_role(interaction.user):
+        if delete_days < 0 or delete_days > 7:
+            await interaction.response.send_message('Delete days must be between 0 and 7.', ephemeral=True)
+            return
+
+        if not interaction.guild.me.guild_permissions.ban_members:
+            await interaction.response.send_message('I do not have permission to ban members.', ephemeral=True)
+            return
+
+        if member.top_role >= interaction.guild.me.top_role:
+            await interaction.response.send_message('I cannot ban this member due to role hierarchy.', ephemeral=True)
+            return
+
+        try:
+            await self.send_dm(member, "banned", reason)
+            await member.ban(reason=reason, delete_message_days=delete_days)
+            await interaction.response.send_message(f"{self.get_checkmark_emoji()} {member.mention} has been banned for: {reason}")
+        except discord.Forbidden:
+            await interaction.response.send_message('Failed to ban member: insufficient permissions.', ephemeral=True)
+
+    @app_commands.command(name='softban', description='Softban a member')
+    @app_commands.describe(member='Member to softban', reason='Reason for the softban', delete_days='Days of messages to delete (0-7)')
+    async def softban(self, interaction: discord.Interaction, member: discord.Member, reason: str, delete_days: int = 1):
+        if not self.can_execute(interaction):
             await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
             return
-        
-        try:
-            # Validate delete_days
-            if delete_days < 0 or delete_days > 7:
-                await interaction.response.send_message('Delete days must be between 0 and 7.', ephemeral=True)
-                return
-            
-            # Check if bot has permission
-            if not interaction.guild.me.guild_permissions.ban_members:
-                await interaction.response.send_message('I do not have permission to ban members.', ephemeral=True)
-                return
-            
-            # Check if target is bannable
-            if member.top_role >= interaction.guild.me.top_role:
-                await interaction.response.send_message('I cannot softban this member due to role hierarchy.', ephemeral=True)
-                return
-            
-            # Get case number
-            case_number = self.case_tracker.get_next_case_number()
-            
-            # Try to DM the user first
-            try:
-                dm_embed = discord.Embed(
-                    title='You have been softbanned',
-                    description=f'You have been softbanned from **{interaction.guild.name}**\n(Your messages were deleted but you can rejoin)',
-                    color=discord.Color.orange()
-                )
-                dm_embed.add_field(name='Reason', value=reason, inline=False)
-                dm_embed.add_field(name='Case Number', value=f'#{case_number}', inline=False)
-                dm_embed.add_field(name='Moderator', value=interaction.user.mention, inline=False)
-                
-                await member.send(embed=dm_embed)
-                dm_sent = True
-            except discord.Forbidden:
-                dm_sent = False
-            
-            # Softban the member (ban then unban)
-            await member.ban(reason=f'Case #{case_number}: {reason}', delete_message_days=delete_days)
-            await interaction.guild.unban(member, reason=f'Softban - Case #{case_number}')
-            
-            # Save case
-            self.case_tracker.save_case(case_number, 'softban', member.id, interaction.user.id, reason)
-            
-            # Create response embed
-            embed = discord.Embed(
-                title=f'{self.get_checkmark_emoji()} Member Softbanned',
-                description=f'**{member.name}** has been softbanned from the server.',
-                color=discord.Color.orange()
-            )
-            embed.add_field(name='Case Number', value=f'#{case_number}', inline=True)
-            embed.add_field(name='Reason', value=reason, inline=True)
-            embed.add_field(name='Moderator', value=interaction.user.mention, inline=True)
-            embed.add_field(name='Messages Deleted', value=f'{delete_days} days', inline=True)
-            embed.add_field(name='DM Sent', value='Yes' if dm_sent else 'No (DMs disabled)', inline=True)
-            
-            await interaction.response.send_message(embed=embed)
-            logger.info(f'Member softbanned: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
-            await log_command_usage(self.bot, interaction, 'softban', f'Target: {member.name} | Reason: {reason} | Case: #{case_number}')
-            
-        except discord.Forbidden:
-            await interaction.response.send_message('I do not have permission to softban this member.', ephemeral=True)
-        except Exception as e:
-            logger.error(f'Error softbanning member: {e}')
-            await interaction.response.send_message('An error occurred while softbanning the member.', ephemeral=True)
 
-    @app_commands.command(name='mute', description='Mute a member (timeout)')
-    @app_commands.describe(member='The member to mute', duration='Duration in minutes', reason='Reason for the mute')
-    async def mute(self, interaction: discord.Interaction, member: discord.Member, duration: int, reason: str = 'No reason provided'):
-        """Mute a member with case tracking"""
-        if not has_moderator_role(interaction.user):
+        if delete_days < 0 or delete_days > 7:
+            await interaction.response.send_message('Delete days must be between 0 and 7.', ephemeral=True)
+            return
+
+        try:
+            await self.send_dm(member, "softbanned", reason)
+            await member.ban(reason=reason, delete_message_days=delete_days)
+            await interaction.guild.unban(discord.Object(id=member.id))
+            await interaction.response.send_message(f"{self.get_checkmark_emoji()} {member.mention} has been softbanned for: {reason}")
+        except discord.Forbidden:
+            await interaction.response.send_message('Failed to softban member: insufficient permissions.', ephemeral=True)
+
+    @app_commands.command(name='mute', description='Mute (timeout) a member')
+    @app_commands.describe(member='Member to mute', duration='Duration in minutes', reason='Reason for the mute')
+    async def mute(self, interaction: discord.Interaction, member: discord.Member, duration: int, reason: str):
+        if not self.can_execute(interaction):
             await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
             return
-        
-        try:
-            # Validate duration
-            if duration < 1 or duration > 40320:  # Max 28 days
-                await interaction.response.send_message('Duration must be between 1 and 40320 minutes (28 days).', ephemeral=True)
-                return
-            
-            # Check if bot has permission
-            if not interaction.guild.me.guild_permissions.moderate_members:
-                await interaction.response.send_message('I do not have permission to timeout members.', ephemeral=True)
-                return
-            
-            # Check if target is muteable
-            if member.top_role >= interaction.guild.me.top_role:
-                await interaction.response.send_message('I cannot mute this member due to role hierarchy.', ephemeral=True)
-                return
-            
-            # Get case number
-            case_number = self.case_tracker.get_next_case_number()
-            
-            # Try to DM the user first
-            try:
-                dm_embed = discord.Embed(
-                    title='You have been muted',
-                    description=f'You have been muted in **{interaction.guild.name}**',
-                    color=discord.Color.orange()
-                )
-                dm_embed.add_field(name='Duration', value=f'{duration} minutes', inline=False)
-                dm_embed.add_field(name='Reason', value=reason, inline=False)
-                dm_embed.add_field(name='Case Number', value=f'#{case_number}', inline=False)
-                dm_embed.add_field(name='Moderator', value=interaction.user.mention, inline=False)
-                
-                await member.send(embed=dm_embed)
-                dm_sent = True
-            except discord.Forbidden:
-                dm_sent = False
-            
-            # Mute the member
-            import datetime
-            until = discord.utils.utcnow() + datetime.timedelta(minutes=duration)
-            await member.timeout(until, reason=f'Case #{case_number}: {reason}')
-            
-            # Save case
-            self.case_tracker.save_case(case_number, 'mute', member.id, interaction.user.id, f'{reason} (Duration: {duration} minutes)')
-            
-            # Create response embed
-            embed = discord.Embed(
-                title=f'{self.get_checkmark_emoji()} Member Muted',
-                description=f'**{member.name}** has been muted.',
-                color=discord.Color.orange()
-            )
-            embed.add_field(name='Case Number', value=f'#{case_number}', inline=True)
-            embed.add_field(name='Duration', value=f'{duration} minutes', inline=True)
-            embed.add_field(name='Reason', value=reason, inline=True)
-            embed.add_field(name='Moderator', value=interaction.user.mention, inline=True)
-            embed.add_field(name='DM Sent', value='Yes' if dm_sent else 'No (DMs disabled)', inline=True)
-            
-            await interaction.response.send_message(embed=embed)
-            logger.info(f'Member muted: {member.name} ({member.id}) by {interaction.user.name} - Case #{case_number}')
-            await log_command_usage(self.bot, interaction, 'mute', f'Target: {member.name} | Duration: {duration}min | Reason: {reason} | Case: #{case_number}')
-            
-        except discord.Forbidden:
-            await interaction.response.send_message('I do not have permission to mute this member.', ephemeral=True)
-        except Exception as e:
-            logger.error(f'Error muting member: {e}')
-            await interaction.response.send_message('An error occurred while muting the member.', ephemeral=True)
 
-    @app_commands.command(name='purge', description='Delete multiple messages')
-    @app_commands.describe(amount='Number of messages to delete (1-100)')
+        if duration < 1 or duration > 40320:
+            await interaction.response.send_message('Duration must be between 1 and 40320 minutes.', ephemeral=True)
+            return
+
+        if not interaction.guild.me.guild_permissions.moderate_members:
+            await interaction.response.send_message('I do not have permission to mute members.', ephemeral=True)
+            return
+
+        until = discord.utils.utcnow() + datetime.timedelta(minutes=duration)
+
+        try:
+            await self.send_dm(member, f"muted for {duration} minutes", reason)
+            await member.timeout(until, reason=reason)
+            await interaction.response.send_message(f"{self.get_checkmark_emoji()} {member.mention} has been muted for {duration} minutes. Reason: {reason}")
+        except discord.Forbidden:
+            await interaction.response.send_message('Failed to mute member: insufficient permissions.', ephemeral=True)
+
+    @app_commands.command(name="lock", description="Lock the current channel")
+    async def lock(self, interaction: discord.Interaction):
+        if not self.can_lock(interaction.user):
+            await interaction.response.send_message("You do not have permission to lock channels.", ephemeral=True)
+            return
+
+        role = interaction.guild.get_role(COMMUNITY_MEMBER_ROLE_ID)
+        if role is None:
+            await interaction.response.send_message("Community member role not found.", ephemeral=True)
+            return
+
+        channel = interaction.channel
+        overwrite = channel.overwrites_for(role)
+        overwrite.send_messages = False
+
+        try:
+            await channel.set_permissions(role, overwrite=overwrite)
+            await interaction.response.send_message(f"{self.get_checkmark_emoji()} This channel has been locked for {role.name}.")
+        except Exception as e:
+            logger.error(f"Failed to lock channel: {e}")
+            await interaction.response.send_message("Failed to lock the channel.", ephemeral=True)
+
+    @app_commands.command(name="unlock", description="Unlock the current channel")
+    async def unlock(self, interaction: discord.Interaction):
+        if not self.can_lock(interaction.user):
+            await interaction.response.send_message("You do not have permission to unlock channels.", ephemeral=True)
+            return
+
+        role = interaction.guild.get_role(COMMUNITY_MEMBER_ROLE_ID)
+        if role is None:
+            await interaction.response.send_message("Community member role not found.", ephemeral=True)
+            return
+
+        channel = interaction.channel
+        overwrite = channel.overwrites_for(role)
+        overwrite.send_messages = None  # Remove overwrite so permissions revert to default
+
+        try:
+            await channel.set_permissions(role, overwrite=overwrite)
+            await interaction.response.send_message(f"{self.get_checkmark_emoji()} This channel has been unlocked for {role.name}.")
+        except Exception as e:
+            logger.error(f"Failed to unlock channel: {e}")
+            await interaction.response.send_message("Failed to unlock the channel.", ephemeral=True)
+
+    @app_commands.command(name="purge", description="Purge a number of messages from the current channel")
+    @app_commands.describe(amount="Number of messages to delete (1-100)")
     async def purge(self, interaction: discord.Interaction, amount: int):
-        """Purge messages with case tracking"""
-        if not has_moderator_role(interaction.user):
-            await interaction.response.send_message('You do not have permission to use this command.', ephemeral=True)
-            return
-        
-        try:
-            # Validate amount
-            if amount < 1 or amount > 100:
-                await interaction.response.send_message('Amount must be between 1 and 100.', ephemeral=True)
-                return
-            
-            # Check if bot has permission
-            if not interaction.guild.me.guild_permissions.manage_messages:
-                await interaction.response.send_message('I do not have permission to manage messages.', ephemeral=True)
-                return
-            
-            # Get case number
-            case_number = self.case_tracker.get_next_case_number()
-            
-            # Defer response since this might take a while
-            await interaction.response.defer()
-            
-            # Purge messages
-            deleted = await interaction.channel.purge(limit=amount)
-            deleted_count = len(deleted)
-            
-            # Save case
-            self.case_tracker.save_case(case_number, 'purge', interaction.channel.id, interaction.user.id, f'Deleted {deleted_count} messages')
-            
-            # Create response embed
-            embed = discord.Embed(
-                title=f'{self.get_checkmark_emoji()} Messages Purged',
-                description=f'Successfully deleted **{deleted_count}** messages.',
-                color=discord.Color.green()
+        if not any(role.id == LIMITED_ROLE_ID for role in interaction.user.roles):
+            await interaction.response.send_message(
+                "<:Denied:1370806202094583918> The command has failed", ephemeral=True
             )
-            embed.add_field(name='Case Number', value=f'#{case_number}', inline=True)
-            embed.add_field(name='Channel', value=interaction.channel.mention, inline=True)
-            embed.add_field(name='Moderator', value=interaction.user.mention, inline=True)
-            
-            await interaction.followup.send(embed=embed)
-            logger.info(f'Messages purged: {deleted_count} in {interaction.channel.name} by {interaction.user.name} - Case #{case_number}')
-            await log_command_usage(self.bot, interaction, 'purge', f'Deleted: {deleted_count} messages | Case: #{case_number}')
-            
-        except discord.Forbidden:
-            await interaction.followup.send('I do not have permission to delete messages in this channel.')
-        except Exception as e:
-            logger.error(f'Error purging messages: {e}')
-            await interaction.followup.send('An error occurred while purging messages.')
+            return
 
-async def setup(bot):
+        if amount < 1 or amount > 100:
+            await interaction.response.send_message(
+                "<:Denied:1370806202094583918> The command has failed", ephemeral=True
+            )
+            return
+
+        try:
+            deleted = await interaction.channel.purge(limit=amount)
+            await interaction.response.send_message(
+                f"<:checkmark:1384993844671545506> Successfully purged {len(deleted)} messages.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Failed to purge messages: {e}")
+            await interaction.response.send_message(
+                "<:Denied:1370806202094583918> The command has failed", ephemeral=True
+            )
+
+async def setup(bot: commands.Bot):
     await bot.add_cog(ModerationCog(bot))

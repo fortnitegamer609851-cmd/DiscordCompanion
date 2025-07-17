@@ -4,179 +4,79 @@ import asyncio
 import os
 from dotenv import load_dotenv
 import logging
-from keep_alive import keep_alive
+# from keep_alive import keep_alive  # Commented out for Render, uncomment if needed
+from bot.cogs.blacklist import blacklisted_users  # shared global blacklist set
 
-# Load environment variables
 load_dotenv()
-
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Bot configuration
-TOKEN = os.getenv('DISCORD_TOKEN')
-WELCOME_CHANNEL_ID = 1393737919121854584
-MODERATOR_ROLE_ID = 1393754910088101958
-COMMAND_LOG_CHANNEL_ID = 1393756933957226506
-INFRACTION_ROLE_ID = 1393737607653097614
+TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Bot intents
+if not TOKEN:
+    logger.error("DISCORD_TOKEN environment variable not set!")
+    exit(1)  # Stop running if token is missing
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
 
-# Create bot instance
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-async def log_command_usage(interaction: discord.Interaction, command_name: str, additional_info: str = ""):
-    """Log command usage to the designated channel"""
-    try:
-        log_channel = bot.get_channel(COMMAND_LOG_CHANNEL_ID)
-        if log_channel:
-            embed = discord.Embed(
-                title="🔧 Command Used",
-                color=discord.Color.blue(),
-                timestamp=discord.utils.utcnow()
-            )
-            
-            embed.add_field(
-                name="Command", 
-                value=f"`/{command_name}`", 
-                inline=True
-            )
-            
-            embed.add_field(
-                name="User", 
-                value=f"{interaction.user.mention} ({interaction.user.name})", 
-                inline=True
-            )
-            
-            embed.add_field(
-                name="Channel", 
-                value=f"{interaction.channel.mention}", 
-                inline=True
-            )
-            
-            if additional_info:
-                embed.add_field(
-                    name="Details", 
-                    value=additional_info, 
-                    inline=False
-                )
-            
-            embed.set_footer(text=f"User ID: {interaction.user.id}")
-            
-            await log_channel.send(embed=embed)
-            
-    except Exception as e:
-        logger.error(f"Failed to log command usage: {e}")
+# ✅ Global check for all slash commands
+async def global_blacklist_check(interaction: discord.Interaction) -> bool:
+    if interaction.user.id in blacklisted_users:
+        await interaction.response.send_message(
+            "<:parp_caution:1393980985950998769> You have been blacklisted from using this bot.",
+            ephemeral=True
+        )
+        return False
+    return True
 
-@bot.event
-async def on_ready():
-    logger.info(f'{bot.user} has connected to Discord!')
-    logger.info(f'Bot is in {len(bot.guilds)} guilds')
-    
-    # Sync slash commands immediately after bot ready
-    await asyncio.sleep(2)  # Wait for Discord to be fully ready
-    
-    try:
-        guild_id = 1369403919293485188  # Pennsylvania State Roleplay server ID
-        guild = discord.Object(id=guild_id)
-        
-        # Log all available commands
-        all_commands = bot.tree.get_commands()
-        logger.info(f'Available commands: {[cmd.name for cmd in all_commands]}')
-        
-        # Sync to guild first (faster updates)
-        synced_guild = await bot.tree.sync(guild=guild)
-        logger.info(f'Synced {len(synced_guild)} command(s) to guild {guild_id}')
-        
-        # Also sync globally for backup
-        synced_global = await bot.tree.sync()
-        logger.info(f'Synced {len(synced_global)} command(s) globally')
-        
-        logger.info('All commands synced successfully!')
-        
-    except Exception as e:
-        logger.error(f'Failed to sync commands: {e}')
+# ✅ Attach global check
+bot.tree.interaction_check = global_blacklist_check
 
-@bot.event
-async def on_guild_join(guild):
-    logger.info(f'Joined guild: {guild.name} (ID: {guild.id})')
-
-@bot.event
-async def on_guild_remove(guild):
-    logger.info(f'Left guild: {guild.name} (ID: {guild.id})')
-
-# Load cogs
 async def load_cogs():
-    cogs = [
+    for cog in [
         'bot.cogs.welcome',
         'bot.cogs.moderation',
         'bot.cogs.member_count',
         'bot.cogs.messaging',
         'bot.cogs.infraction',
-        'bot.cogs.suggestions'
-    ]
-    
-    for cog in cogs:
+        'bot.cogs.suggestions',
+        'bot.cogs.promote',
+        'bot.cogs.topicc',
+        'bot.cogs.session',
+        'bot.cogs.blacklist',
+        'bot.cogs.review'
+    ]:
         try:
             await bot.load_extension(cog)
-            logger.info(f'Loaded cog: {cog}')
+            logger.info(f"Loaded {cog}")
         except Exception as e:
-            logger.error(f'Failed to load cog {cog}: {e}')
+            logger.error(f"Cog load failed {cog}: {e}")
 
-# Basic commands
-@bot.tree.command(name='ping', description='Check bot latency')
-async def ping(interaction: discord.Interaction):
-    latency = round(bot.latency * 1000)
-    await interaction.response.send_message(f'Pong! Latency: {latency}ms')
+@bot.event
+async def on_ready():
+    logger.info(f"{bot.user} connected; in {len(bot.guilds)} guilds")
+    await asyncio.sleep(2)
     try:
-        await log_command_usage(interaction, 'ping', f'Latency: {latency}ms')
+        guild = discord.Object(id=1369403919293485188)
+        synced = await bot.tree.sync(guild=guild)
+        logger.info(f"Synced {len(synced)} guild cmds")
+        synced_glob = await bot.tree.sync()
+        logger.info(f"Synced {len(synced_glob)} global cmds")
     except Exception as e:
-        logger.error(f"Failed to log command usage: {e}")
-
-
-
-@bot.tree.command(name='sync', description='Force sync commands (Owner only)')
-async def sync_command(interaction: discord.Interaction):
-    """Manually sync slash commands"""
-    if interaction.user.id != interaction.guild.owner_id:
-        await interaction.response.send_message("❌ Only the server owner can use this command.", ephemeral=True)
-        return
-    
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        # Sync to current guild
-        synced = await bot.tree.sync(guild=interaction.guild)
-        # Also sync globally  
-        synced_global = await bot.tree.sync()
-        
-        await interaction.followup.send(
-            f"✅ Successfully synced {len(synced)} commands to this server and {len(synced_global)} commands globally.",
-            ephemeral=True
-        )
-        try:
-            await log_command_usage(interaction, 'sync', f'Guild: {len(synced)} commands, Global: {len(synced_global)} commands')
-        except Exception as e:
-            logger.error(f"Failed to log command usage: {e}")
-    except Exception as e:
-        await interaction.followup.send(f"❌ Failed to sync commands: {str(e)}", ephemeral=True)
+        logger.error(f"Sync failed: {e}")
 
 async def main():
-    # Keep the bot alive
-    keep_alive()
-    
-    # Load cogs before starting
+    # keep_alive()  # Commented out for Render compatibility; uncomment if you want to keep it
     await load_cogs()
-    
-    # Start the bot
     try:
         await bot.start(TOKEN)
     except Exception as e:
-        logger.error(f'Failed to start bot: {e}')
+        logger.error(f"Bot start failed: {e}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
